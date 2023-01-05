@@ -3,7 +3,9 @@ package codec;
 import com.alibaba.fastjson.JSON;
 import model.MyHttpResponse;
 
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 
 /**
  * http编码器
@@ -22,8 +24,15 @@ public class HttpEncoder {
      * \r\n
      * {"k1": "v1"}
      */
-    public <T> byte[] encode(MyHttpResponse<T> response) {
-        StringBuilder sb = new StringBuilder();
+    public <T> ByteBuffer encode(MyHttpResponse<T> response) {
+        StringBuilder sb=new StringBuilder();
+        if(response.getBody()!=null){
+            byte[] bytes = JSON.toJSONString(response.getBody()).getBytes(StandardCharsets.UTF_8);
+            response.setBodyData(bytes);
+            // 添加响应体长度
+            response.getHeaders().put("Content-Length",bytes.length);
+        }
+
         // 1.响应行
         sb.append(response.getVersion()).append(' ').
                 append(response.getCode()).append(' ').
@@ -36,9 +45,10 @@ public class HttpEncoder {
         sb.append('\n');
 
         // 4.响应体
-        if (response.getBody() != null) {
-            sb.append(JSON.toJSONString(response.getBody()));
+        if (response.getBodyData() != null) {
+            // 末尾加个换行符
+            sb.append(new String(response.getBodyData(),StandardCharsets.UTF_8)).append('\n');
         }
-        return sb.toString().getBytes(StandardCharsets.UTF_8);
+        return ByteBuffer.wrap(sb.toString().getBytes(StandardCharsets.UTF_8));
     }
 }

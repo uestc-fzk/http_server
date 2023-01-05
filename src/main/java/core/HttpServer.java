@@ -81,17 +81,19 @@ public class HttpServer implements Closeable {
                 // 7.监听到客户端发新消息
                 else if (next.isReadable()) {
                     // 7.1.取出发送者通道
+                    next.interestOps(0);// 取消读兴趣
                     SocketChannel cliChannel = (SocketChannel) next.channel();
-                    processRead(cliChannel,next);
+                    processRead(cliChannel, next);
                 }
             }
         }
     }
 
-    public void processRead(SocketChannel cliChannel,SelectionKey selectionKey) throws IOException, InterruptedException {
+    public void processRead(SocketChannel cliChannel, SelectionKey selectionKey) throws IOException, InterruptedException {
         // 若连接已关闭
         if (!cliChannel.isConnected()) {
             cliChannel.close();
+            selectionKey.cancel();
             return;
         }
 
@@ -102,6 +104,7 @@ public class HttpServer implements Closeable {
             // 没有内容说明连接中断
             MyLogger.info(String.format("close connection %s", cliChannel.getRemoteAddress()));
             cliChannel.close();
+            selectionKey.cancel();
             return;
         }
 
@@ -119,29 +122,26 @@ public class HttpServer implements Closeable {
 
         // 响应
         MyHttpResponse<Map<String, String>> response = new MyHttpResponse<>(200, Map.of("k1", "v1"));
-        byte[] bytes = encoder.encode(response);
+        ByteBuffer responseBuf = encoder.encode(response);
 
-        buf.clear();
-        buf.put(bytes);
-        buf.flip();
-        while (buf.hasRemaining()) {
-            cliChannel.write(buf);
+        while (responseBuf.hasRemaining()) {
+            cliChannel.write(responseBuf);
         }
-        buf.clear();
+        responseBuf.clear();
 
-        System.out.println(new String(bytes, StandardCharsets.UTF_8));
+        System.out.println(new String(responseBuf.array(), StandardCharsets.UTF_8));
         // 关闭连接
 //        Thread.sleep(1000);
-        cliChannel.close();
+//            cliChannel.close();
     }
 
     @Override
     public void close() throws IOException {
         try {
-            serverChannel.close();
             selector.close();
+            serverChannel.close();
         } catch (IOException e) {
-            MyLogger.warning("close server occurs error: " + e);
+            MyLogger.warning("close selector and serverChannel occurs error: " + e);
         }
     }
 }
