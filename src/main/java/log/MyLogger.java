@@ -1,10 +1,10 @@
 package log;
 
+import config.ConfigReader;
+
+import java.io.IOException;
 import java.util.function.Supplier;
-import java.util.logging.ConsoleHandler;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import java.util.logging.SimpleFormatter;
+import java.util.logging.*;
 
 /**
  * 提供者Supplier函数式接口 提供日志信息
@@ -75,12 +75,23 @@ public class MyLogger {
 
             /*当前配置为控制台打印所有级别信息*/
             {
-                logger.setLevel(Level.ALL);
+                Level level = Level.parse(ConfigReader.getConfig().getLogLevel().toUpperCase());
+                logger.setLevel(level);
                 logger.setUseParentHandlers(false);
+                // 配置控制台输出
                 ConsoleHandler consoleHandler = new ConsoleHandler();
-                consoleHandler.setLevel(Level.ALL);
+                consoleHandler.setLevel(level);
                 consoleHandler.setFormatter(new SimpleFormatter());
                 logger.addHandler(consoleHandler);
+                // 配置文件
+                try {
+                    FileHandler fileHandler = new FileHandler(ConfigReader.getConfig().getLogPath(), false);
+                    fileHandler.setLevel(level);
+                    fileHandler.setFormatter(new SimpleFormatter());
+                    logger.addHandler(fileHandler);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
             }
         }
 

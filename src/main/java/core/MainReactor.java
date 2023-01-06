@@ -1,9 +1,11 @@
 package core;
 
+import config.HttpServerConfig;
 import log.MyLogger;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
@@ -17,6 +19,7 @@ import java.nio.channels.SocketChannel;
  */
 public class MainReactor implements Runnable, Closeable {
     public static final int SUB_REACTOR_COUNT = Runtime.getRuntime().availableProcessors();
+    private final HttpServerConfig config;
     public final String name;
     private volatile int runState = 0;// 运行状态, 0未启动, 1运行中, 2关闭中, 3已关闭
     private final Selector mainSelector;
@@ -27,10 +30,14 @@ public class MainReactor implements Runnable, Closeable {
     private final Thread mainThread;
     private final ThreadGroup subTheadGroup;
 
-    public MainReactor(ServerSocketChannel serverSocketChannel) throws IOException {
+    public MainReactor(HttpServerConfig config) throws IOException {
+        this.config=config;
         this.name = "MainReactor";
-        this.serverChannel = serverSocketChannel;
+        // 新建ServerChannel
+        this.serverChannel = ServerSocketChannel.open();
         this.serverChannel.configureBlocking(false);
+        this.serverChannel.bind(new InetSocketAddress(config.getHost(),config.getPort()));
+        // 新建Selector并注册
         this.mainSelector = Selector.open();
         this.serverChannel.register(mainSelector, SelectionKey.OP_ACCEPT);
         this.acceptor = new Acceptor(mainSelector);
@@ -38,7 +45,7 @@ public class MainReactor implements Runnable, Closeable {
         // 创建SubReactor
         this.subReactors = new SubReactor[SUB_REACTOR_COUNT];
         for (int i = 0; i < subReactors.length; i++) {
-            subReactors[i] = new SubReactor("SubReactor-" + i);
+            subReactors[i] = new SubReactor(config,"SubReactor-" + i);
         }
 
         // 创建线程组

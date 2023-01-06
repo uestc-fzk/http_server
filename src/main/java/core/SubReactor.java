@@ -2,9 +2,12 @@ package core;
 
 import codec.HttpDecoder;
 import codec.HttpEncoder;
+import com.alibaba.fastjson.JSON;
+import config.HttpServerConfig;
 import log.MyLogger;
 import model.MyHttpRequest;
 import model.MyHttpResponse;
+import model.MyResponseWrapper;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -25,8 +28,9 @@ import java.util.concurrent.Executors;
  * @author fzk
  * @datetime 2023-01-06 11:05
  */
-class SubReactor implements Runnable, Closeable {
+public class SubReactor implements Runnable, Closeable {
     public static final int THREAD_POOL_SIZE = Runtime.getRuntime().availableProcessors();
+    private final HttpServerConfig config;
     public final String name;
     private volatile int runState = 0;// 运行状态, 0未启动, 1运行中, 2关闭中, 3已关闭
     public Thread thread;
@@ -37,7 +41,8 @@ class SubReactor implements Runnable, Closeable {
     private final HttpEncoder encoder;
     private final HttpDecoder decoder;
 
-    SubReactor(String name) throws IOException {
+    SubReactor(HttpServerConfig config, String name) throws IOException {
+        this.config=config;
         this.name = name;
         this.subSelector = Selector.open();
         this.executorService = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
@@ -48,13 +53,15 @@ class SubReactor implements Runnable, Closeable {
     public void start() {
         runState = 1;
         thread.start();
-        MyLogger.info(String.format("%s start",this.name));
+        MyLogger.info(String.format("%s start", this.name));
     }
 
     // 注册chanel，关注读事件
     public void registerChannel(SocketChannel sc) throws IOException {
         sc.configureBlocking(false);
-        sc.register(subSelector, SelectionKey.OP_READ);
+        SelectionKey key = sc.register(subSelector, SelectionKey.OP_READ);
+        // 注意：这里将SubReactor黏在SelectionKey上, 目的很明确, 方便后续更新其兴趣集并唤醒selector
+        key.attach(this);
         wakeup();// 必须唤醒Selector才能检测到新加入的SocketChannel
     }
 
@@ -139,18 +146,16 @@ class SubReactor implements Runnable, Closeable {
                 System.out.println(request);
 
                 // 响应
-                MyHttpResponse<Map<String, String>> response = new MyHttpResponse<>(200, Map.of("k1", "v1"));
-                ByteBuffer responseBuf = encoder.encode(response);
+                MyHttpResponse response = new MyHttpResponse(200);
+                MyResponseWrapper wrapper = new MyResponseWrapper(
+                        response,key,cliChannel,ByteBuffer.allocateDirect(1024),encoder);
 
-                while (responseBuf.hasRemaining()) {
-                    cliChannel.write(responseBuf);
-                }
-                responseBuf.clear();
-
-                System.out.println(new String(responseBuf.array(), StandardCharsets.UTF_8));
-
+                String json = JSON.toJSONString(Map.of("k1", "v1", "k2", new int[]{1, 2}));
+                wrapper.write(json.getBytes(StandardCharsets.UTF_8));
+                wrapper.flush();
+                wrapper.close();
                 // 将兴趣集恢复，监听读事件
-                updateInterestOps(key, SelectionKey.OP_READ);
+//                updateInterestOps(key, SelectionKey.OP_READ);
             } catch (IOException e) {
                 MyLogger.warning(String.format("%s handle read occurs error: %s", this.name, e));
             }

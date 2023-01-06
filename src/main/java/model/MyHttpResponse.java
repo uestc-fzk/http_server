@@ -2,6 +2,7 @@ package model;
 
 import lombok.Data;
 
+import java.nio.ByteBuffer;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -11,13 +12,12 @@ import java.util.Map;
  * @datetime 2023-01-05 0:02
  */
 @Data
-public class MyHttpResponse<T> {
+public class MyHttpResponse {
     private String version;
     private int code;// 响应码
     private String status;// 短语信息
     private Map<String, Object> headers;// 响应头
-    private T body;
-    private byte[] bodyData;// 响应体数据
+    private ByteBuffer bodyData;// 响应体数据
 
     /**
      * HTTP/1.1 200
@@ -29,9 +29,8 @@ public class MyHttpResponse<T> {
      * \r\n
      * {"k1": "v1"}
      */
-    public MyHttpResponse(int code, T body) {
+    public MyHttpResponse(int code) {
         this.code = code;
-        this.body = body;
         this.version = "HTTP/1.1";
         this.status="ok";
         this.headers=new HashMap<>();

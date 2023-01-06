@@ -1,6 +1,6 @@
 package config;
 
-import log.MyLogger;
+import com.alibaba.fastjson.JSON;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -11,16 +11,22 @@ import java.util.Properties;
  * @datetime 2023-01-04 21:43
  */
 public class ConfigReader {
-    public static final String ConfigFilePath = "http_config.properties";
 
-    public static Properties getConfigProperties() {
+    public static final String ConfigFilePath = "http_config.properties";
+    public static final HttpServerConfig config;
+
+    static {
         Properties properties = new Properties();
-        try ( InputStream inputStream = ClassLoader.getSystemResourceAsStream(ConfigFilePath);){
+        InputStream inputStream = ClassLoader.getSystemResourceAsStream(ConfigFilePath);
+        try {
             properties.load(inputStream);
         } catch (IOException e) {
-            MyLogger.warning("config file read err: " + e.toString());
+            throw new RuntimeException(e);
         }
-        return properties;
+        String jsonStr = JSON.toJSONString(properties);
+        config = JSON.parseObject(jsonStr, HttpServerConfig.class);
     }
-
+    public static HttpServerConfig getConfig(){
+        return config;
+    }
 }
