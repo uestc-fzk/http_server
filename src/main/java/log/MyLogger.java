@@ -13,7 +13,7 @@ import java.util.logging.SimpleFormatter;
  * 默认只记录前3个级别
  *
  * @author fzk
- * @date 2021-11-17 10:26
+ * @datetime 2021-11-17 10:26
  */
 @SuppressWarnings("unused")
 public class MyLogger {

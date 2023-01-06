@@ -13,15 +13,15 @@ public class Main {
     public static final String HOST_KEY = "host";
     public static final String PORT_KEY = "port";
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args)  {
         Properties properties = ConfigReader.getConfigProperties();
         MyLogger.info(properties.toString());
         String host=properties.getProperty(HOST_KEY);
         int port = Integer.parseInt(properties.getProperty(PORT_KEY));
 
-        try (HttpServer httpServer = new HttpServer(host,port);){
-            httpServer.start();
-        } catch (InterruptedException e) {
+        try {
+            new HttpServer(host,port).start();
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
