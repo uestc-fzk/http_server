@@ -37,9 +37,9 @@ public class SubReactor implements Runnable, Closeable {
     private final ExecutorService executorService;
 
     // 通过函数式接口为每个ChannelRead事件生成ChannelHandler链
-    private final Supplier<List<ChannelHandler>> supplier;
+    private final Supplier<List<ChannelHandler<?>>> supplier;
 
-    SubReactor(HttpServerConfig config, String name, Supplier<List<ChannelHandler>> supplier) throws IOException {
+    SubReactor(HttpServerConfig config, String name, Supplier<List<ChannelHandler<?>>> supplier) throws IOException {
         this.config = config;
         this.name = name;
         this.supplier = supplier;
@@ -50,7 +50,7 @@ public class SubReactor implements Runnable, Closeable {
     public void start() {
         runState = 1;
         thread.start();
-        MyLogger.info(String.format("%s start", this.name));
+        MyLogger.logger.fine(String.format("%s start", this.name));
     }
 
     // 注册chanel，关注读事件
@@ -136,11 +136,11 @@ public class SubReactor implements Runnable, Closeable {
                     sb.append(StandardCharsets.UTF_8.decode(buf));
                     buf.clear();
                 } while (cliChannel.read(buf) > 0);
-                MyLogger.info(String.format("new content from %s", cliChannel.getRemoteAddress()));
+                MyLogger.logger.fine(String.format("new content from %s", cliChannel.getRemoteAddress()));
 //                System.out.println(sb.toString());
 
                 // 获取ChannelHandler列表
-                List<ChannelHandler> handlers = supplier.get();
+                List<ChannelHandler<?>> handlers = supplier.get();
                 // 新建ChannelContext
                 ChannelContext ctx = new ChannelContext(cliChannel, key, handlers.toArray(ChannelHandler[]::new));
                 // 调用handler链式处理
@@ -150,7 +150,7 @@ public class SubReactor implements Runnable, Closeable {
 //                updateInterestOps(key, SelectionKey.OP_READ);
             } catch (IOException e) {
                 cancelKey(key);// 出现异常就取消key并关闭channel
-                MyLogger.warning(String.format("%s handle read occurs error: %s", this.name, e));
+                MyLogger.logger.warning(String.format("%s handle read occurs error: %s", this.name, e));
             }
         });
     }
@@ -163,9 +163,9 @@ public class SubReactor implements Runnable, Closeable {
             if (channel != null) {
                 try {
                     channel.close();
-                    MyLogger.info(String.format("close connection from %s", channel.getRemoteAddress()));
+                    MyLogger.logger.fine(String.format("close connection from %s", channel.getRemoteAddress()));
                 } catch (IOException e) {
-                    MyLogger.warning(String.format("%s close SocketChannel occurs error: %s", this.name, e));
+                    MyLogger.logger.warning(String.format("%s close SocketChannel occurs error: %s", this.name, e));
                 }
             }
         }
@@ -176,7 +176,7 @@ public class SubReactor implements Runnable, Closeable {
         if (runState != 1) return;
 
         runState = 2;// 关闭中
-        MyLogger.info(String.format("%s is closing", this.name));
+        MyLogger.logger.fine(String.format("%s is closing", this.name));
         // 关闭线程池
         executorService.shutdown();
         // 关闭Selector并关闭注册的Channel
@@ -185,16 +185,16 @@ public class SubReactor implements Runnable, Closeable {
             try {
                 selectionKey.channel().close();
             } catch (IOException e) {
-                MyLogger.warning(String.format("%s close subSelector occurs error: %s", this.name, e));
+                MyLogger.logger.warning(String.format("%s close subSelector occurs error: %s", this.name, e));
             }
         });
         try {
             subSelector.close();
         } catch (IOException e) {
-            MyLogger.warning(this.name + " close subSelector occurs error: " + e);
+            MyLogger.logger.warning(this.name + " close subSelector occurs error: " + e);
         }
 
         runState = 3;// 关闭成功
-        MyLogger.info(String.format("%s close successfully", this.name));
+        MyLogger.logger.fine(String.format("%s close successfully", this.name));
     }
 }

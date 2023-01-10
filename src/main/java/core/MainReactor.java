@@ -32,9 +32,9 @@ public class MainReactor implements Runnable, Closeable {
     private volatile int nextSubReactor = 0;
     private final Thread mainThread;
     private final ThreadGroup subTheadGroup;
-    private final Supplier<List<ChannelHandler>> supplier;
+    private final Supplier<List<ChannelHandler<?>>> supplier;
 
-    public MainReactor(HttpServerConfig config,Supplier<List<ChannelHandler>> supplier) throws IOException {
+    public MainReactor(HttpServerConfig config,Supplier<List<ChannelHandler<?>>> supplier) throws IOException {
         this.config=config;
         this.supplier=supplier;
         this.name = "MainReactor";
@@ -69,7 +69,7 @@ public class MainReactor implements Runnable, Closeable {
         }
         // 2.启动MainReactor/Acceptor线程
         mainThread.start();
-        MyLogger.info(String.format("%s start",this.name));
+        MyLogger.logger.fine(String.format("%s start",this.name));
     }
 
     /**
@@ -81,13 +81,13 @@ public class MainReactor implements Runnable, Closeable {
         // 将SocketChannel分派到各个SubReactor中
         try {
             synchronized (subReactors) {
-                MyLogger.info(String.format("监听到新连接: %s 即将分派到%s\n", socketChannel.getRemoteAddress(), "subReactor-" + nextSubReactor));
+                MyLogger.logger.info(String.format("监听到新连接: %s 即将分派到%s\n", socketChannel.getRemoteAddress(), "subReactor-" + nextSubReactor));
                 SubReactor subReactor = subReactors[nextSubReactor++];
                 if (nextSubReactor >= subReactors.length) nextSubReactor = 0;
                 subReactor.registerChannel(socketChannel);
             }
         } catch (IOException e) {
-            MyLogger.warning(String.format("dispatch socketChannel occurs error: " + e));
+            MyLogger.logger.warning(String.format("dispatch socketChannel occurs error: " + e));
         }
     }
 
@@ -102,7 +102,7 @@ public class MainReactor implements Runnable, Closeable {
                     }
                 });
             } catch (IOException e) {
-                MyLogger.warning("MainReactor run occurs error: " + e);
+                MyLogger.logger.warning("MainReactor run occurs error: " + e);
                 break;
             }
         }
@@ -117,6 +117,7 @@ public class MainReactor implements Runnable, Closeable {
         if (runState != 1) return;
 
         runState = 2;// 关闭中
+        MyLogger.logger.fine(String.format("%s is closing", this.name));
         // 中断从线程组
         subTheadGroup.interrupt();
         // 1.先关闭subReactor
@@ -127,15 +128,16 @@ public class MainReactor implements Runnable, Closeable {
         try {
             serverChannel.close();
         } catch (IOException e) {
-            MyLogger.warning(String.format("close serverChannel occurs error: %s", e));
+            MyLogger.logger.warning(String.format("close serverChannel occurs error: %s", e));
         }
         // 3.再关闭selector
         try {
             mainSelector.close();
         } catch (IOException e) {
-            MyLogger.warning(String.format("close mainSelector occurs error: %s", e));
+            MyLogger.logger.warning(String.format("close mainSelector occurs error: %s", e));
         }
 
         runState = 3;// 成功关闭
+        MyLogger.logger.fine(String.format("%s close successfully", this.name));
     }
 }

@@ -24,11 +24,11 @@ import java.util.Arrays;
 public class HttpDemo {
     public static void main(String[] args) {
         HttpServerConfig config = ConfigReader.getConfig();
-        MyLogger.info(config.toString());
+        MyLogger.logger.info(config.toString());
 
         try {
             new HttpServer(config, () -> {
-                ArrayList<ChannelHandler> list = new ArrayList<>();
+                ArrayList<ChannelHandler<?>> list = new ArrayList<>();
                 list.add(new HttpHandler());
                 list.add(new MyHttpHandler());
                 return list;
@@ -53,8 +53,8 @@ public class HttpDemo {
             } catch (Exception e) {
                 // 错误响应
                 response.code = 500;
-                String errMsg = "服务端错误: " + Arrays.toString(e.getStackTrace());
-                MyLogger.severe(() -> errMsg);
+                String errMsg = String.format("服务端错误: %s, %s", e.toString(), Arrays.toString(e.getStackTrace()));
+                MyLogger.logger.severe(errMsg);
 
                 response.write(errMsg.getBytes(StandardCharsets.UTF_8));
             } finally {

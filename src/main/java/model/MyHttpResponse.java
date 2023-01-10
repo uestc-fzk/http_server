@@ -73,7 +73,7 @@ public class MyHttpResponse {
     public int flush() throws IOException {
         // 幂等处理
         if (isFlushed) {
-            MyLogger.warning("flush 只能调用1次");
+            MyLogger.logger.warning("flush 只能调用1次");
             return 0;
         }
         body.put((byte) '\n');// 加个换行符表示响应体结束捏

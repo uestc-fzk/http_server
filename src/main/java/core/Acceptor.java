@@ -31,7 +31,7 @@ class Acceptor {
                 SelectionKey selectionKey = iterator.next();
                 iterator.remove();
                 if(!selectionKey.isValid()){
-                    MyLogger.warning("acceptor selectionKey is invalid ???");
+                    MyLogger.logger.warning("acceptor selectionKey is invalid ???");
                 }
                 assert selectionKey.isAcceptable();
 
