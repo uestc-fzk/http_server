@@ -1,13 +1,9 @@
 package core;
 
-import codec.HttpDecoder;
-import codec.HttpEncoder;
-import com.alibaba.fastjson.JSON;
 import config.HttpServerConfig;
+import handler.ChannelContext;
+import handler.ChannelHandler;
 import log.MyLogger;
-import model.MyHttpRequest;
-import model.MyHttpResponse;
-import model.MyResponseWrapper;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -17,10 +13,11 @@ import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
-import java.util.Map;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Supplier;
 
 /**
  * 从Reactor负责监听连接读事件，并交给线程池处理
@@ -38,16 +35,16 @@ public class SubReactor implements Runnable, Closeable {
 
     // 多线程处理业务逻辑
     private final ExecutorService executorService;
-    private final HttpEncoder encoder;
-    private final HttpDecoder decoder;
 
-    SubReactor(HttpServerConfig config, String name) throws IOException {
-        this.config=config;
+    // 通过函数式接口为每个ChannelRead事件生成ChannelHandler链
+    private final Supplier<List<ChannelHandler>> supplier;
+
+    SubReactor(HttpServerConfig config, String name, Supplier<List<ChannelHandler>> supplier) throws IOException {
+        this.config = config;
         this.name = name;
+        this.supplier = supplier;
         this.subSelector = Selector.open();
         this.executorService = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
-        this.encoder = new HttpEncoder();
-        this.decoder = new HttpDecoder();
     }
 
     public void start() {
@@ -140,28 +137,25 @@ public class SubReactor implements Runnable, Closeable {
                     buf.clear();
                 } while (cliChannel.read(buf) > 0);
                 MyLogger.info(String.format("new content from %s", cliChannel.getRemoteAddress()));
+//                System.out.println(sb.toString());
 
-                MyHttpRequest request = decoder.decodeHttp(
-                        ByteBuffer.wrap(sb.toString().getBytes(StandardCharsets.UTF_8)));
-                System.out.println(request);
+                // 获取ChannelHandler列表
+                List<ChannelHandler> handlers = supplier.get();
+                // 新建ChannelContext
+                ChannelContext ctx = new ChannelContext(cliChannel, key, handlers.toArray(ChannelHandler[]::new));
+                // 调用handler链式处理
+                ctx.next(ByteBuffer.wrap(sb.toString().getBytes(StandardCharsets.UTF_8)));
 
-                // 响应
-                MyHttpResponse response = new MyHttpResponse(200);
-                MyResponseWrapper wrapper = new MyResponseWrapper(
-                        response,key,cliChannel,ByteBuffer.allocateDirect(1024),encoder);
-
-                String json = JSON.toJSONString(Map.of("k1", "v1", "k2", new int[]{1, 2}));
-                wrapper.write(json.getBytes(StandardCharsets.UTF_8));
-                wrapper.flush();
-                wrapper.close();
-                // 将兴趣集恢复，监听读事件
+//                // 将兴趣集恢复，监听读事件
 //                updateInterestOps(key, SelectionKey.OP_READ);
             } catch (IOException e) {
+                cancelKey(key);// 出现异常就取消key并关闭channel
                 MyLogger.warning(String.format("%s handle read occurs error: %s", this.name, e));
             }
         });
     }
 
+    // 取消key监听并关闭channel
     private void cancelKey(SelectionKey key) {
         if (key != null) {
             key.cancel();

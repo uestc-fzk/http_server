@@ -1,6 +1,7 @@
 package core;
 
 import config.HttpServerConfig;
+import handler.ChannelHandler;
 import log.MyLogger;
 
 import java.io.Closeable;
@@ -10,6 +11,8 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.util.List;
+import java.util.function.Supplier;
 
 /**
  * 主Reactor，接受连接并注册到从Reactor
@@ -29,9 +32,11 @@ public class MainReactor implements Runnable, Closeable {
     private volatile int nextSubReactor = 0;
     private final Thread mainThread;
     private final ThreadGroup subTheadGroup;
+    private final Supplier<List<ChannelHandler>> supplier;
 
-    public MainReactor(HttpServerConfig config) throws IOException {
+    public MainReactor(HttpServerConfig config,Supplier<List<ChannelHandler>> supplier) throws IOException {
         this.config=config;
+        this.supplier=supplier;
         this.name = "MainReactor";
         // 新建ServerChannel
         this.serverChannel = ServerSocketChannel.open();
@@ -45,7 +50,7 @@ public class MainReactor implements Runnable, Closeable {
         // 创建SubReactor
         this.subReactors = new SubReactor[SUB_REACTOR_COUNT];
         for (int i = 0; i < subReactors.length; i++) {
-            subReactors[i] = new SubReactor(config,"SubReactor-" + i);
+            subReactors[i] = new SubReactor(config,"SubReactor-" + i,supplier);
         }
 
         // 创建线程组

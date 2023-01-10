@@ -2,6 +2,7 @@ package model;
 
 import lombok.Data;
 
+import java.io.BufferedReader;
 import java.net.Proxy;
 import java.net.URI;
 import java.util.HashMap;
@@ -41,5 +42,5 @@ public class MyHttpRequest {
     //    private  Duration timeout;  // may be null
     private  String version;
 
-    private String body;
+    private BufferedReader body;
 }

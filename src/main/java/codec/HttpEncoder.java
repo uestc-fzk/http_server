@@ -22,19 +22,19 @@ public class HttpEncoder {
      * \r\n
      * {"k1": "v1"}
      */
-    public ByteBuffer encode(MyHttpResponse response) {
+    public static ByteBuffer encode(MyHttpResponse response) {
         StringBuilder sb=new StringBuilder();
-        if( response.getBodyData()!=null){
+        if( response.body!=null){
             // 添加响应体长度
-            response.getHeaders().put("Content-Length",response.getBodyData().remaining());
+            response.headers.put("Content-Length",response.body.remaining());
         }
 
         // 1.响应行
-        sb.append(response.getVersion()).append(' ').
-                append(response.getCode()).append(' ').
-                append(response.getStatus()).append('\n');
+        sb.append(response.version).append(' ').
+                append(response.code).append(' ').
+                append(response.status).append('\n');
         // 2.响应头
-        response.getHeaders().forEach((k, v) -> {
+        response.headers.forEach((k, v) -> {
             sb.append(k).append(": ").append(v).append('\n');
         });
         // 3.空行

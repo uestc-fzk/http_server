@@ -2,10 +2,7 @@ package codec;
 
 import model.MyHttpRequest;
 
-import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.net.URI;
 import java.nio.ByteBuffer;
 
@@ -28,7 +25,7 @@ public class HttpDecoder {
     //            "k1": 1,
     //            "k2": [1,2]
     //        }
-    public MyHttpRequest decodeHttp(ByteBuffer buffer) throws IOException {
+    public static MyHttpRequest decodeHttp(ByteBuffer buffer) throws IOException {
         MyHttpRequest request = new MyHttpRequest();
         BufferedReader br = new BufferedReader(new InputStreamReader(new ByteArrayInputStream(buffer.array())));
         // 1.解析请求行
@@ -47,14 +44,13 @@ public class HttpDecoder {
             headerData = br.readLine();
         }
         // 第三行空行不解析，第四行请求体
-        StringBuilder sb = new StringBuilder();
-        String bodyData = br.readLine();
-        while (bodyData != null && !bodyData.equals("")) {
-            sb.append(bodyData);
-            bodyData = br.readLine();
-        }
-
-        request.setBody(sb.toString());
+//        StringBuilder sb = new StringBuilder();
+//        String bodyData = br.readLine();
+//        while (bodyData != null && !bodyData.equals("")) {
+//            sb.append(bodyData);
+//            bodyData = br.readLine();
+//        }
+        request.setBody(br);
         return request;
     }
 }
