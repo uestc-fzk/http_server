@@ -43,7 +43,7 @@ public class MyLogger {
 
         // 配置文件日志输出
         try {
-            FileHandler fileHandler = new FileHandler(ConfigReader.getConfig().getLogPath(), 1024 * 1024, 5, false);
+            FileHandler fileHandler = new FileHandler(ConfigReader.getConfig().getLogPath(), 1024 * 1024*16, 5, false);
             fileHandler.setLevel(level);
             fileHandler.setFormatter(formatter);
             logger.addHandler(fileHandler);
