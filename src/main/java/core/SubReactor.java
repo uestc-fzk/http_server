@@ -125,7 +125,7 @@ public class SubReactor implements Runnable, Closeable {
                 StringBuilder sb = new StringBuilder();
                 // 注意：这里必须是-1，当没有内容时返回-1不是0!
                 if (cliChannel.read(buf) == -1) {
-                    // 没有内容说明连接中断
+                    // 注意：没有内容说明客户端主动关闭连接
                     cancelKey(key);
                     return;
                 }
